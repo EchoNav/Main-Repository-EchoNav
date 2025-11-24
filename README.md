@@ -17,16 +17,18 @@ EchoNav est une application mobile innovante destinée à aider les personnes ma
 - **SwiftUI** : NavigationStack
 
 ### 2. **Frameworks iOS**
-- **ARKit** : Pour accéder aux données LiDAR et aux informations de profondeur en temps réel.
+- **ARKit** : Pour accéder aux données LiDAR et aux informations de profondeur
+en temps réel afin de générer une description sémantique (texte) des
+objets détectés. (ARMeshAnchor, ARObjectAnchor)
 - **CoreML** : Pour les modèles de machine learning (reconnaissance des objets, classification des obstacles).
 - **Vision** : Pour la détection d’objets via la caméra (si nécessaire en complément du LiDAR).
 - **MapKit** : Pour l’intégration du GPS et la gestion de la cartographie.
 - **CoreLocation** : Pour la géolocalisation.
 
 ### 3. **Machine Learning / IA**
-- **TensorFlow Lite** : Version mobile de TensorFlow pour le traitement sur les appareils iOS (si nécessaire pour le deep learning).
-- **PyTorch Mobile** : Alternatif à TensorFlow Lite, utilisé pour le machine learning sur mobile.
-- **CreateML** : Outil d’Apple pour créer et entraîner des modèles ML directement sur macOS.
+- **CreateML + CoreML + Phi-3 Mini** : pour transformer les données brutes de détection (type, distance, direction) en phrases descriptives naturelles et adaptées à la situation. Exemple : “Poteau à 2 mètres sur la gauche” → “Obstacle à gauche,contournez-le.”
+- **Apple Natural Language Framework** : pour un pré-traitement ou un post-traitement textuel rapide (lemmatisation, reformulation courte).
+- **AVSpeechSynthesizer (Text-to-Speech)** : pour convertir les phrases générées en voix, intégrée à CoreAudio/PHASE.
 
 ### 4. **Audio**
 - **CoreAudio / AVFoundation** : Pour gérer le son et l'audio 3D.
