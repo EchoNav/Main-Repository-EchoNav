@@ -1,57 +1,42 @@
-//
-//  EchoNav.swift
-//  EchoNav
-//
-//  Created by Rayan Mazri on 15/09/2025.
-//
-
 import SwiftUI
 import RealityKit
 import ARKit
 import AVFoundation
 import Combine
-
+    
 @main
 struct EchoNavApp: App {
     var body: some SwiftUI.Scene {
-        WindowGroup {
-            ProximityRootView()
-        }
+        WindowGroup { ProximityRootView() }
     }
+
     struct ProximityRootView: View {
-        @StateObject private var proximityVM = ProximityViewModel()
-        
+        @StateObject private var vm = ProximityViewModel()
         var body: some View {
             ZStack(alignment: .top) {
-                ARViewContainer(viewModel: proximityVM)
-                    .ignoresSafeArea()
-                
-                HUD(viewModel: proximityVM)
-                    .padding(12)
+                ARViewContainer(viewModel: vm).ignoresSafeArea()
+                HUD(viewModel: vm).padding(12)
             }
-            .onAppear { proximityVM.start() }
-            .onDisappear { proximityVM.stop() }
+            .onAppear { vm.start() }
+            .onDisappear { vm.stop() }
         }
     }
-    
-    // MARK: - ViewModel
+
     final class ProximityViewModel: NSObject, ObservableObject {
-        // Published HUD data
-        @Published var distanceText: String = "—"
-        @Published var statusText: String = "Initialisation…"
-        @Published var isLiDARAvailable: Bool = false
+        @Published var distanceText = "—"
+        @Published var statusText = "Initialisation…"
+        @Published var isLiDARAvailable = false
         @Published var warningLevel: WarningLevel = .none
-        
-        // Tuning (made file-visible so Coordinator can read them)
-        let nearThreshold: Float = 0.6     // meters – continuous tone below this
-        let midThreshold: Float  = 1.2     // meters – faster beeps below this
-        let maxSense: Float      = 3.0     // meters – ignore detections beyond this
-        
+
+        let nearThreshold: Float = 0.6
+        let midThreshold: Float  = 1.2
+        let maxSense: Float      = 3.0
+
         fileprivate weak var arView: ARView?
-        fileprivate var audio: ProximityAudio = ProximityAudio()
+        fileprivate var audio = ProximityAudio()
         fileprivate var haptics = UINotificationFeedbackGenerator()
         fileprivate var lastCrossedNear = false
-        
+
         func start() {
             guard ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) else {
                 statusText = "Appareil incompatible (pas de LiDAR)."
@@ -63,57 +48,46 @@ struct EchoNavApp: App {
             haptics.prepare()
             audio.startEngine()
         }
-        
+
         func stop() {
             audio.stopEngine()
             arView?.session.pause()
         }
     }
-    
-    // MARK: - AR Container
+
     struct ARViewContainer: UIViewRepresentable {
         let viewModel: ProximityViewModel
-        
+
         func makeUIView(context: Context) -> ARView {
             let view = ARView(frame: .zero)
             viewModel.arView = view
             view.session.delegate = context.coordinator
-            
-            // LiDAR configuration
             let config = ARWorldTrackingConfiguration()
             config.sceneReconstruction = .meshWithClassification
             if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
                 config.frameSemantics.insert(.sceneDepth)
             }
-            config.environmentTexturing = .automatic
-            view.debugOptions = [] // [.showSceneUnderstanding]
             view.session.run(config, options: [.resetTracking, .removeExistingAnchors])
-            
             return view
         }
-            
+
         func updateUIView(_ uiView: ARView, context: Context) {}
-        
         func makeCoordinator() -> Coordinator { Coordinator(viewModel: viewModel) }
-        
+
         final class Coordinator: NSObject, ARSessionDelegate {
             private let vm: ProximityViewModel
             private var lastSampleTime: CFTimeInterval = 0
-            private let sampleHz: Double = 10 // compute distance at ~10 Hz to save power
-            
+            private let sampleHz: Double = 10
             init(viewModel: ProximityViewModel) { self.vm = viewModel }
-            
+
             func session(_ session: ARSession, didUpdate frame: ARFrame) {
                 let now = frame.timestamp
                 guard now - lastSampleTime >= 1.0 / sampleHz else { return }
                 lastSampleTime = now
                 guard let arView = vm.arView else { return }
-                
-                // Cast a ray from the screen center using RealityKit helper.
                 let center = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
                 let results = arView.raycast(from: center, allowing: .estimatedPlane, alignment: .any)
                 if let result = results.first {
-                    // Extract world positions from 4x4 transforms without relying on an inaccessible `.translation` helper
                     let camT = frame.camera.transform.columns.3
                     let resT = result.worldTransform.columns.3
                     let camPos = SIMD3<Float>(camT.x, camT.y, camT.z)
@@ -124,11 +98,10 @@ struct EchoNavApp: App {
                     handleNoHit()
                 }
             }
-            
+
             private func handleDistance(_ d: Float) {
                 let clamped = max(0, min(d, vm.maxSense))
                 vm.distanceText = String(format: "%.2f m", clamped)
-                
                 if d < vm.nearThreshold {
                     vm.statusText = "DANGER: obstacle très proche"
                     vm.warningLevel = .high
@@ -151,7 +124,7 @@ struct EchoNavApp: App {
                     handleNoHit()
                 }
             }
-            
+
             private func handleNoHit() {
                 vm.distanceText = "—"
                 vm.statusText = "Aucun obstacle à portée"
@@ -159,9 +132,8 @@ struct EchoNavApp: App {
                 vm.audio.setMode(.silent)
                 vm.lastCrossedNear = false
             }
-            
+
             private func mapInterval(for d: Float) -> Double {
-                // Map distance [0.2, midThreshold] -> interval [0.15s, 1.2s]
                 let dMin: Float = 0.2
                 let dMax: Float = max(vm.midThreshold, dMin + 0.01)
                 let tMin: Double = 0.15
@@ -169,9 +141,8 @@ struct EchoNavApp: App {
                 let t = Double((d - dMin) / (dMax - dMin))
                 return max(tMin, min(tMax, t * (tMax - tMin) + tMin))
             }
-            
+
             private func mapFreq(for d: Float) -> Double {
-                // Map distance [0.2, maxSense] -> freq [1200 Hz, 300 Hz]
                 let dMin: Float = 0.2
                 let dMax: Float = max(vm.maxSense, dMin + 0.01)
                 let fNear: Double = 1200
@@ -181,11 +152,9 @@ struct EchoNavApp: App {
             }
         }
     }
-    
-    // MARK: - HUD
+
     struct HUD: View {
         @ObservedObject var viewModel: ProximityViewModel
-        
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("EchoNav", systemImage: "wave.3.right.circle")
@@ -193,7 +162,6 @@ struct EchoNavApp: App {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(.ultraThinMaterial, in: Capsule())
-                
                 HStack(spacing: 12) {
                     Text(viewModel.distanceText)
                         .font(.system(size: 36, weight: .bold, design: .rounded))
@@ -202,7 +170,6 @@ struct EchoNavApp: App {
                 }
                 .padding(10)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                
                 if !viewModel.isLiDARAvailable {
                     Text("⚠️ Appareil sans LiDAR – fonctionnalités limitées.")
                         .font(.footnote)
@@ -211,92 +178,80 @@ struct EchoNavApp: App {
             .foregroundStyle(.primary)
         }
     }
-    
+
     enum WarningLevel { case none, low, medium, high }
-    
+
     struct StatusBadge: View {
         let level: WarningLevel
         let text: String
-        
         var body: some View {
             HStack(spacing: 6) {
-                Circle()
-                    .frame(width: 10, height: 10)
-                    .foregroundStyle(color)
-                Text(text)
-                    .font(.subheadline.weight(.medium))
+                Circle().frame(width: 10, height: 10).foregroundStyle(color)
+                Text(text).font(.subheadline.weight(.medium))
             }
             .padding(.horizontal, 10).padding(.vertical, 6)
             .background(.thinMaterial, in: Capsule())
         }
-        
         private var color: Color {
-            switch level { case .none: return .gray; case .low: return .green; case .medium: return .orange; case .high: return .red }
+            switch level {
+            case .none: return .gray
+            case .low: return .green
+            case .medium: return .orange
+            case .high: return .red
+            }
         }
     }
-    
-    // MARK: - Audio Engine
+
     final class ProximityAudio {
         enum Mode { case silent, beep(interval: Double, frequency: Double), continuous(frequency: Double) }
-        
         private let engine = AVAudioEngine()
         private var source: AVAudioSourceNode?
         private var timer: DispatchSourceTimer?
         private let sampleRate: Double = 44_100
-        
         private var currentMode: Mode = .silent
         private var phase: Double = 0
         private var isBeeping = false
-        private let beepDuration: Double = 0.08 // 80 ms
-        
+        private let beepDuration: Double = 0.08
+
         func startEngine() {
             guard engine.isRunning == false else { return }
             let src = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
-                guard let self else { return noErr }
-                guard let abl = UnsafeMutableAudioBufferListPointer(audioBufferList).first else { return noErr }
+                guard let self else { return 0 }
+                guard let abl = UnsafeMutableAudioBufferListPointer(audioBufferList).first else { return 0 }
                 let bufferPointer = abl.mData!.assumingMemoryBound(to: Float.self)
                 let frames = Int(frameCount)
-                
-                // Render depending on mode
                 var freq: Double = 0
                 var renderTone = false
-                
-                switch currentMode {
-                case .silent:
-                    renderTone = false
-                case .continuous(let f):
-                    freq = f; renderTone = true
-                case .beep(_, let f):
-                    freq = f; renderTone = isBeeping
+                switch self.currentMode {
+                case .silent: renderTone = false
+                case .continuous(let f): freq = f; renderTone = true
+                case .beep(_, let f): freq = f; renderTone = self.isBeeping
                 }
-                
                 if renderTone && freq > 0 {
                     let twoPi = 2 * Double.pi
                     for n in 0..<frames {
-                        let sample = Float(sin(phase)) * 0.25 // -12 dBFS
+                        let sample = Float(sin(self.phase)) * 0.25
                         bufferPointer[n] = sample
-                        phase += twoPi * freq / sampleRate
-                        if phase > twoPi { phase -= twoPi }
+                        self.phase += twoPi * freq / self.sampleRate
+                        if self.phase > twoPi { self.phase -= twoPi }
                     }
                 } else {
-                    // silence
                     for n in 0..<frames { bufferPointer[n] = 0 }
                 }
-                return noErr
+                return 0
             }
             self.source = src
-            
             let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
             engine.attach(src)
             engine.connect(src, to: engine.mainMixerNode, format: format)
             do { try engine.start() } catch { print("Audio engine error: \(error)") }
         }
-        
+
         func stopEngine() {
             timer?.cancel(); timer = nil
             engine.stop()
         }
-        
+
         func setMode(_ mode: Mode) {
             if case .beep(let interval, let f) = mode {
                 startBeepTimer(interval: interval, frequency: f)
@@ -305,7 +260,7 @@ struct EchoNavApp: App {
             }
             currentMode = mode
         }
-        
+
         private func startBeepTimer(interval: Double, frequency: Double) {
             stopBeepTimer()
             currentMode = .beep(interval: interval, frequency: frequency)
@@ -321,7 +276,7 @@ struct EchoNavApp: App {
             t.resume()
             timer = t
         }
-        
+
         private func stopBeepTimer() {
             timer?.cancel(); timer = nil
             isBeeping = false
