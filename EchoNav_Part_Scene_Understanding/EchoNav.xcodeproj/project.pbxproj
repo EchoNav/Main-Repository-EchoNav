@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6141DB7B2ED6AAD7007175B2 /* yolov8m.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 6141DB7A2ED6AAD7007175B2 /* yolov8m.mlpackage */; };
+		6141DB7D2ED6ABB2007175B2 /* yolov8l.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 6141DB7C2ED6ABB2007175B2 /* yolov8l.mlpackage */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		61AAB4CD2ED3F3860001A3C6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +29,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		6141DB7A2ED6AAD7007175B2 /* yolov8m.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolov8m.mlpackage; sourceTree = "<group>"; };
+		6141DB7C2ED6ABB2007175B2 /* yolov8l.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = yolov8l.mlpackage; sourceTree = "<group>"; };
 		61AAB4BF2ED3F3850001A3C6 /* EchoNav.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EchoNav.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		61AAB4CC2ED3F3860001A3C6 /* EchoNavTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoNavTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		61AAB4D62ED3F3860001A3C6 /* EchoNavUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EchoNavUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -79,6 +86,8 @@
 				61AAB4CF2ED3F3860001A3C6 /* EchoNavTests */,
 				61AAB4D92ED3F3860001A3C6 /* EchoNavUITests */,
 				61AAB4C02ED3F3850001A3C6 /* Products */,
+				6141DB7A2ED6AAD7007175B2 /* yolov8m.mlpackage */,
+				6141DB7C2ED6ABB2007175B2 /* yolov8l.mlpackage */,
 			);
 			sourceTree = "<group>";
 		};
@@ -236,6 +245,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6141DB7D2ED6ABB2007175B2 /* yolov8l.mlpackage in Sources */,
+				6141DB7B2ED6AAD7007175B2 /* yolov8m.mlpackage in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
